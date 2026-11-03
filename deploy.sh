@@ -44,13 +44,13 @@ echo "=== 5. Deploy Backend API Worker ==="
 npx wrangler deploy
 
 echo "=== 6. Build Frontend Admin & TV Player với API Production ==="
-VITE_API_BASE_URL="https://lg-video-signage-api.heroit8x.workers.dev" VITE_PLAYER_URL="https://lg-signage-player.pages.dev" npm run build
+VITE_API_BASE_URL="https://lg-video-signage-api.heroit8x.workers.dev" VITE_PLAYER_URL="https://vnvc-player.pages.dev" npm run build
 
 echo "=== 7. Tạo & Deploy Cloudflare Pages (Admin & TV Player) ==="
-npx wrangler pages project create lg-signage-admin --production-branch=main 2>&1 || true
-npx wrangler pages deploy apps/admin/dist --project-name=lg-signage-admin --branch=main
+npx wrangler pages project create vnvc-admin --production-branch=main 2>&1 || true
+npx wrangler pages deploy apps/admin/dist --project-name=vnvc-admin --branch=main
 
-npx wrangler pages project create lg-signage-player --production-branch=main 2>&1 || true
-npx wrangler pages deploy apps/player/dist --project-name=lg-signage-player --branch=main
+npx wrangler pages project create vnvc-player --production-branch=main 2>&1 || true
+npx wrangler pages deploy apps/player/dist --project-name=vnvc-player --branch=main
 
 echo "=== HOÀN TẤT DEPLOY LÊN CLOUDFLARE! ==="

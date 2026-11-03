@@ -42,17 +42,17 @@ jobs:
       - name: Build Admin & TV Player Apps
         env:
           VITE_API_BASE_URL: https://lg-video-signage-api.heroit8x.workers.dev
-          VITE_PLAYER_URL: https://lg-signage-player.pages.dev
+          VITE_PLAYER_URL: https://vnvc-player.pages.dev
         run: npm run build
 
       - name: Deploy Admin Dashboard to Cloudflare Pages
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: dc2d17eb72d3156c8324b3e26a14efaa
-        run: npx wrangler pages deploy apps/admin/dist --project-name=lg-signage-admin --branch=main
+        run: npx wrangler pages deploy apps/admin/dist --project-name=vnvc-admin --branch=main
 
       - name: Deploy TV Web Player to Cloudflare Pages
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: dc2d17eb72d3156c8324b3e26a14efaa
-        run: npx wrangler pages deploy apps/player/dist --project-name=lg-signage-player --branch=main
+        run: npx wrangler pages deploy apps/player/dist --project-name=vnvc-player --branch=main

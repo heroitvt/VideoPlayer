@@ -11,7 +11,7 @@ app.use(
   cors({
     origin: '*',
     allowMethods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-    allowHeaders: ['Content-Type', 'Authorization', 'If-None-Match', 'Range'],
+    allowHeaders: ['Content-Type', 'Authorization', 'If-None-Match', 'Range', 'x-upload-id', 'x-r2-key', 'x-part-number'],
     exposeHeaders: ['Content-Range', 'Accept-Ranges', 'ETag', 'X-Server-Time']
   })
 );
@@ -223,6 +223,87 @@ app.post('/api/videos/upload', requireAdmin, async (c) => {
       sizeBytes: buffer.byteLength
     }
   });
+});
+
+// --- VIDEO MULTIPART CHUNKED UPLOAD (HỖ TRỢ FILE 500MB - 5GB+ KHÔNG BỊ GIỚI HẠN CLOUDFLARE 100MB) ---
+app.post('/api/videos/upload/init', requireAdmin, async (c) => {
+  const body = await c.req.json().catch(() => ({}));
+  const { title, description, sizeBytes, mimeType } = body;
+
+  const id = `vid_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
+  const r2Key = `videos/${id}.mp4`;
+
+  const multipartUpload = await c.env.VIDEO_BUCKET.createMultipartUpload(r2Key, {
+    httpMetadata: { contentType: mimeType || 'video/mp4' }
+  });
+
+  return c.json({
+    videoId: id,
+    uploadId: multipartUpload.uploadId,
+    r2Key,
+    key: multipartUpload.key
+  });
+});
+
+app.put('/api/videos/upload/part', requireAdmin, async (c) => {
+  const uploadId = c.req.header('x-upload-id');
+  const key = c.req.header('x-r2-key');
+  const partNumberStr = c.req.header('x-part-number');
+
+  if (!uploadId || !key || !partNumberStr) {
+    return c.json({ error: 'Thiếu headers định danh multipart upload' }, 400);
+  }
+
+  const partNumber = parseInt(partNumberStr, 10);
+  const multipartUpload = c.env.VIDEO_BUCKET.resumeMultipartUpload(key, uploadId);
+  const chunkBuffer = await c.req.arrayBuffer();
+
+  const uploadedPart = await multipartUpload.uploadPart(partNumber, chunkBuffer);
+  return c.json({
+    partNumber: uploadedPart.partNumber,
+    etag: uploadedPart.etag
+  });
+});
+
+app.post('/api/videos/upload/complete', requireAdmin, async (c) => {
+  const body = await c.req.json().catch(() => ({}));
+  const { videoId, uploadId, key, title, description, sizeBytes, mimeType, checksum, parts } = body;
+
+  if (!uploadId || !key || !Array.isArray(parts)) {
+    return c.json({ error: 'Thiếu thông tin kết thúc upload' }, 400);
+  }
+
+  const multipartUpload = c.env.VIDEO_BUCKET.resumeMultipartUpload(key, uploadId);
+  await multipartUpload.complete(parts);
+
+  const now = new Date().toISOString();
+  await c.env.DB.prepare(
+    `INSERT INTO videos (id, title, description, current_version, r2_key, mime_type, size_bytes, duration_seconds, checksum, status, created_at, updated_at)
+     VALUES (?, ?, ?, 'v1', ?, ?, ?, 0, ?, 'ACTIVE', ?, ?)`
+  )
+    .bind(videoId, title || 'Video mới', description || '', key, mimeType || 'video/mp4', sizeBytes || 0, checksum || `size:${sizeBytes}`, now, now)
+    .run();
+
+  await c.env.DB.prepare(
+    `INSERT INTO video_versions (id, video_id, version, r2_key, size_bytes, duration_seconds, checksum, created_at)
+     VALUES (?, ?, 'v1', ?, ?, 0, ?, ?)`
+  )
+    .bind(`ver_${Date.now()}`, videoId, key, sizeBytes || 0, checksum || `size:${sizeBytes}`, now)
+    .run();
+
+  return c.json({ success: true, videoId, r2Key: key });
+});
+
+app.post('/api/videos/upload/abort', requireAdmin, async (c) => {
+  const body = await c.req.json().catch(() => ({}));
+  const { uploadId, key } = body;
+  try {
+    if (uploadId && key) {
+      const multipartUpload = c.env.VIDEO_BUCKET.resumeMultipartUpload(key, uploadId);
+      await multipartUpload.abort();
+    }
+  } catch {}
+  return c.json({ success: true });
 });
 
 // Stream video from R2 with HTTP Range 206 support

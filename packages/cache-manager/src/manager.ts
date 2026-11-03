@@ -131,10 +131,17 @@ export class VideoCacheManager {
         onProgress?.(buffer.byteLength, video.sizeBytes);
 
         if (this.verifyChecksum && video.checksum) {
-          const computed = await computeSha256Hex(buffer);
-          if (computed.toLowerCase() !== video.checksum.toLowerCase()) {
-            entry.status = 'CORRUPTED';
-            throw new Error(`Checksum mismatch for ${cacheKey}. Expected ${video.checksum}, got ${computed}`);
+          if (video.checksum.startsWith('size:')) {
+            if (video.sizeBytes > 0 && buffer.byteLength !== video.sizeBytes) {
+              entry.status = 'CORRUPTED';
+              throw new Error(`Size mismatch for ${cacheKey}. Expected ${video.sizeBytes}, got ${buffer.byteLength}`);
+            }
+          } else {
+            const computed = await computeSha256Hex(buffer);
+            if (computed.toLowerCase() !== video.checksum.toLowerCase()) {
+              entry.status = 'CORRUPTED';
+              throw new Error(`Checksum mismatch for ${cacheKey}. Expected ${video.checksum}, got ${computed}`);
+            }
           }
         }
 

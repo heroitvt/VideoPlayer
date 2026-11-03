@@ -4,7 +4,18 @@ import { SchedulePicker } from './SchedulePicker';
 import { Key } from 'lucide-react';
 
 const API_BASE = (import.meta as any).env?.VITE_API_BASE_URL || 'http://localhost:8787';
-const PLAYER_URL = (import.meta as any).env?.VITE_PLAYER_URL || 'http://localhost:5174';
+const PLAYER_URL = (import.meta as any).env?.VITE_PLAYER_URL || 'https://vnvc-player.pages.dev';
+
+interface UploadProgressState {
+  active: boolean;
+  fileName: string;
+  loadedBytes: number;
+  totalBytes: number;
+  percent: number;
+  currentPart: number;
+  totalParts: number;
+  error?: string;
+}
 
 type TabKey = 'dashboard' | 'videos' | 'playlists' | 'drive';
 
@@ -23,6 +34,17 @@ export default function App() {
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [passwordMsg, setPasswordMsg] = useState({ error: '', success: '' });
+
+  // Upload Progress State
+  const [uploadProgress, setUploadProgress] = useState<UploadProgressState>({
+    active: false,
+    fileName: '',
+    loadedBytes: 0,
+    totalBytes: 0,
+    percent: 0,
+    currentPart: 0,
+    totalParts: 0
+  });
 
   // Data States
   const [stats, setStats] = useState<any>(null);
@@ -146,20 +168,141 @@ export default function App() {
   async function handleUploadVideo(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     if (!file) return;
+    e.target.value = ''; // Reset input to allow re-uploading same file if needed
+
+    const CHUNK_SIZE = 10 * 1024 * 1024; // 10MB per chunk (safely under Cloudflare 100MB body limit)
+    const totalBytes = file.size;
+    const totalParts = Math.max(1, Math.ceil(totalBytes / CHUNK_SIZE));
+
     setUploading(true);
+    setUploadProgress({
+      active: true,
+      fileName: file.name,
+      loadedBytes: 0,
+      totalBytes,
+      percent: 0,
+      currentPart: 1,
+      totalParts,
+      error: undefined
+    });
+
+    let uploadId = '';
+    let r2Key = '';
+
     try {
-      const formData = new FormData();
-      formData.append('file', file);
-      formData.append('title', file.name);
-      const res = await fetch(`${API_BASE}/api/videos/upload`, {
+      // 1. Khởi tạo Multipart Upload
+      const initRes = await fetch(`${API_BASE}/api/videos/upload/init`, {
         method: 'POST',
-        headers: authHeaders(),
-        body: formData
+        headers: { ...authHeaders(), 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          title: file.name,
+          sizeBytes: totalBytes,
+          mimeType: file.type || 'video/mp4'
+        })
       });
-      if (res.ok) {
-        await fetchAllData();
+
+      if (!initRes.ok) {
+        const errData = await initRes.json().catch(() => ({}));
+        throw new Error(errData.error || `Lỗi khởi tạo upload (${initRes.status})`);
       }
-    } finally {
+
+      const initData = await initRes.json();
+      uploadId = initData.uploadId;
+      r2Key = initData.r2Key;
+      const videoId = initData.videoId;
+
+      const uploadedParts: { partNumber: number; etag: string }[] = [];
+      let loadedBytes = 0;
+
+      // 2. Tải từng phần (chunk) lên R2
+      for (let partNumber = 1; partNumber <= totalParts; partNumber++) {
+        const start = (partNumber - 1) * CHUNK_SIZE;
+        const end = Math.min(start + CHUNK_SIZE, totalBytes);
+        const chunkBlob = file.slice(start, end);
+
+        setUploadProgress((prev) => ({
+          ...prev,
+          currentPart: partNumber,
+          loadedBytes,
+          percent: Math.round((loadedBytes / totalBytes) * 100)
+        }));
+
+        const partRes = await fetch(`${API_BASE}/api/videos/upload/part`, {
+          method: 'PUT',
+          headers: {
+            ...authHeaders(),
+            'Content-Type': 'application/octet-stream',
+            'x-upload-id': uploadId,
+            'x-r2-key': r2Key,
+            'x-part-number': String(partNumber)
+          },
+          body: chunkBlob
+        });
+
+        if (!partRes.ok) {
+          const partErr = await partRes.json().catch(() => ({}));
+          throw new Error(partErr.error || `Lỗi tải lên phần ${partNumber}/${totalParts}`);
+        }
+
+        const partData = await partRes.json();
+        uploadedParts.push({ partNumber: partData.partNumber, etag: partData.etag });
+        loadedBytes += chunkBlob.size;
+
+        setUploadProgress((prev) => ({
+          ...prev,
+          loadedBytes,
+          percent: Math.round((loadedBytes / totalBytes) * 100)
+        }));
+      }
+
+      // 3. Hoàn tất Multipart Upload
+      setUploadProgress((prev) => ({ ...prev, percent: 100 }));
+      const completeRes = await fetch(`${API_BASE}/api/videos/upload/complete`, {
+        method: 'POST',
+        headers: { ...authHeaders(), 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          videoId,
+          uploadId,
+          key: r2Key,
+          title: file.name,
+          sizeBytes: totalBytes,
+          mimeType: file.type || 'video/mp4',
+          parts: uploadedParts
+        })
+      });
+
+      if (!completeRes.ok) {
+        const compErr = await completeRes.json().catch(() => ({}));
+        throw new Error(compErr.error || 'Lỗi ghép nối các phần video');
+      }
+
+      await fetchAllData();
+      setTimeout(() => {
+        setUploadProgress({
+          active: false,
+          fileName: '',
+          loadedBytes: 0,
+          totalBytes: 0,
+          percent: 0,
+          currentPart: 0,
+          totalParts: 0
+        });
+        setUploading(false);
+      }, 1000);
+    } catch (err: any) {
+      // Hủy multipart upload nếu gặp sự cố
+      if (uploadId && r2Key) {
+        fetch(`${API_BASE}/api/videos/upload/abort`, {
+          method: 'POST',
+          headers: { ...authHeaders(), 'Content-Type': 'application/json' },
+          body: JSON.stringify({ uploadId, key: r2Key })
+        }).catch(() => {});
+      }
+
+      setUploadProgress((prev) => ({
+        ...prev,
+        error: err?.message || 'Có lỗi xảy ra khi tải video lên kho Cloudflare R2'
+      }));
       setUploading(false);
     }
   }
@@ -473,11 +616,61 @@ export default function App() {
           <div className="space-y-6">
             <div className="flex items-center justify-between">
               <h2 className="text-2xl font-bold">Thư viện Video (Cloudflare R2)</h2>
-              <label className="bg-sky-600 hover:bg-sky-500 text-white px-4 py-2 rounded-lg cursor-pointer text-sm font-medium">
-                {uploading ? 'Đang tải lên R2...' : '+ Upload Video MP4'}
+              <label
+                className={`${
+                  uploading ? 'bg-slate-700 cursor-not-allowed' : 'bg-sky-600 hover:bg-sky-500 cursor-pointer'
+                } text-white px-4 py-2 rounded-lg text-sm font-medium transition`}
+              >
+                {uploading ? `Đang tải lên (${uploadProgress.percent}%)...` : '+ Upload Video MP4'}
                 <input type="file" accept="video/mp4" onChange={handleUploadVideo} className="hidden" disabled={uploading} />
               </label>
             </div>
+
+            {uploadProgress.active && (
+              <div className="bg-slate-900 border border-sky-500/40 rounded-xl p-5 space-y-3 shadow-lg">
+                <div className="flex items-center justify-between text-sm">
+                  <div className="font-semibold text-sky-300 truncate max-w-lg">
+                    Đang tải lên: {uploadProgress.fileName}
+                  </div>
+                  <div className="font-bold text-white">
+                    {uploadProgress.percent}%
+                  </div>
+                </div>
+
+                {/* Progress Bar */}
+                <div className="w-full bg-slate-800 h-3.5 rounded-full overflow-hidden p-0.5">
+                  <div
+                    className={`h-full rounded-full transition-all duration-300 ${
+                      uploadProgress.error ? 'bg-red-500' : 'bg-sky-500'
+                    }`}
+                    style={{ width: `${Math.max(2, uploadProgress.percent)}%` }}
+                  />
+                </div>
+
+                <div className="flex items-center justify-between text-xs text-slate-400">
+                  <span>
+                    Đã tải: {(uploadProgress.loadedBytes / (1024 * 1024)).toFixed(2)} MB /{' '}
+                    {(uploadProgress.totalBytes / (1024 * 1024)).toFixed(2)} MB
+                  </span>
+                  <span>
+                    Phân đoạn (Chunk 10MB): Phần {uploadProgress.currentPart} / {uploadProgress.totalParts}
+                  </span>
+                </div>
+
+                {uploadProgress.error && (
+                  <div className="flex items-center justify-between bg-red-950/60 border border-red-700/60 text-red-300 px-3 py-2 rounded-lg text-xs">
+                    <span>Lỗi: {uploadProgress.error}</span>
+                    <button
+                      type="button"
+                      onClick={() => setUploadProgress((prev) => ({ ...prev, active: false, error: undefined }))}
+                      className="text-white underline font-semibold ml-4"
+                    >
+                      Đóng
+                    </button>
+                  </div>
+                )}
+              </div>
+            )}
             <div className="bg-slate-900 border border-slate-800 rounded-xl overflow-hidden">
               <table className="w-full text-left text-sm">
                 <thead className="bg-slate-800/60 text-slate-400">
