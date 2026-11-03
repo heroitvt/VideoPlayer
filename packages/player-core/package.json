@@ -1,0 +1,16 @@
+{
+  "name": "@signage/player-core",
+  "version": "1.0.0",
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "scripts": {
+    "build": "tsc"
+  },
+  "dependencies": {
+    "@signage/shared": "*",
+    "@signage/cache-manager": "*"
+  },
+  "devDependencies": {
+    "typescript": "^5.4.5"
+  }
+}

@@ -1,0 +1,23 @@
+{
+  "name": "lg-video-signage",
+  "version": "1.0.0",
+  "private": true,
+  "workspaces": [
+    "packages/*",
+    "workers/*",
+    "apps/*"
+  ],
+  "scripts": {
+    "build": "npm run build --workspaces --if-present",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "dev:api": "npm run dev --workspace=workers/api",
+    "dev:admin": "npm run dev --workspace=apps/admin",
+    "dev:player": "npm run dev --workspace=apps/player"
+  },
+  "devDependencies": {
+    "typescript": "^5.4.5",
+    "vitest": "^1.6.0",
+    "wrangler": "^4.156.2"
+  }
+}

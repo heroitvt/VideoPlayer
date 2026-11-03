@@ -1,0 +1,24 @@
+{
+  "name": "lg-video-signage-api",
+  "main": "workers/api/src/index.ts",
+  "compatibility_date": "2024-09-23",
+  "workers_dev": true,
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "lg-signage-db",
+      "database_id": "ca40df3f-1d9b-4de0-82f8-229b57fd5fdb",
+      "migrations_dir": "database/migrations"
+    }
+  ],
+  "r2_buckets": [
+    {
+      "binding": "VIDEO_BUCKET",
+      "bucket_name": "lg-signage-videos"
+    }
+  ],
+  "vars": {
+    "ADMIN_USERNAME": "admin",
+    "TIMEZONE": "Asia/Ho_Chi_Minh"
+  }
+}
