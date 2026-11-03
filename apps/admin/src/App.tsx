@@ -619,7 +619,7 @@ export default function App() {
               />
 
               <SchedulePicker
-                label="Thời điểm ngừng phát & Xóa cache TV (expiresAt)"
+                label="Thời điểm ngừng phát (expiresAt)"
                 value={playlistItems[editingScheduleIdx].expiresAt}
                 placeholder="Vô thời hạn (Không bao giờ hết hạn)"
                 isExpiry
@@ -629,27 +629,6 @@ export default function App() {
                   setPlaylistItems(copy);
                 }}
               />
-
-              <div className="space-y-1.5 pt-1">
-                <label className="block text-xs text-slate-300 font-medium">
-                  Chính sách xử lý khi hết hạn (Expiry Policy)
-                </label>
-                <select
-                  value={playlistItems[editingScheduleIdx].expiryPolicy}
-                  onChange={(e) => {
-                    const copy = [...playlistItems];
-                    copy[editingScheduleIdx].expiryPolicy = e.target.value;
-                    setPlaylistItems(copy);
-                  }}
-                  className="w-full bg-slate-950 border border-slate-700 hover:border-sky-500 rounded-lg px-3 py-2 text-xs text-slate-200 transition"
-                >
-                  <option value="IMMEDIATE">Ngừng ngay lập tức & xóa đúng cache video này</option>
-                  <option value="FINISH_CURRENT">Cho phép phát hết lượt video này rồi mới xóa cache</option>
-                </select>
-                <p className="text-[11px] text-slate-500 italic">
-                  * Khi video hết hạn, Smart TV chỉ xóa riêng tệp cache của video này, bảo toàn tuyệt đối các video còn hạn khác.
-                </p>
-              </div>
             </div>
 
             <div className="flex justify-end gap-2 pt-3 border-t border-slate-800">
@@ -984,10 +963,6 @@ export default function App() {
                               </div>
                               <div className="text-[11px] text-slate-400 mt-0.5 flex items-center gap-2">
                                 <span>Version: {it.videoVersion}</span>
-                                <span>•</span>
-                                <span>
-                                  Chính sách: {it.expiryPolicy === 'IMMEDIATE' ? 'Ngừng ngay' : 'Hết lượt phát'}
-                                </span>
                               </div>
                             </td>
 
