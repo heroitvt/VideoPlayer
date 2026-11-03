@@ -797,260 +797,292 @@ export default function App() {
 
         {activeTab === 'playlists' && (
           <div className="space-y-6">
-            <div className="flex items-center justify-between">
-              <h2 className="text-2xl font-bold">Quản lý Playlist & Lịch phát (Asia/Ho_Chi_Minh)</h2>
-              <button
-                onClick={handleCreatePlaylist}
-                className="bg-sky-600 hover:bg-sky-500 text-white px-4 py-2 rounded-lg text-sm font-medium"
-              >
-                + Tạo Playlist
-              </button>
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-              <div className="bg-slate-900 border border-slate-800 rounded-xl p-4 space-y-2">
-                <h3 className="font-semibold text-slate-300 mb-2">Danh sách Playlist</h3>
-                {playlists.map((p) => (
-                  <button
-                    key={p.id}
-                    onClick={() => handleSelectPlaylist(p.id)}
-                    className={`w-full text-left p-3 rounded-lg border ${
-                      selectedPlaylist?.id === p.id
-                        ? 'border-sky-500 bg-sky-950/40'
-                        : 'border-slate-800 hover:bg-slate-800/50'
-                    }`}
-                  >
-                    <div className="font-medium">{p.name}</div>
-                    <div className="text-xs text-slate-400">
-                      Phiên bản: v{p.current_version} • {p.is_published ? 'Đã xuất bản' : 'Bản nháp'}
-                    </div>
-                  </button>
-                ))}
+            {/* Top Bar: Tiêu đề + Dropdown Chọn Playlist + Nút Tạo Mới */}
+            <div className="bg-slate-900 border border-slate-800 rounded-xl p-5 shadow-sm space-y-4">
+              <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                <div>
+                  <h2 className="text-xl font-bold text-white">Quản lý Playlist & Lịch phát (Asia/Ho_Chi_Minh)</h2>
+                  <p className="text-xs text-slate-400 mt-1">Chọn playlist cần cấu hình hoặc tạo playlist mới để phát trên TV.</p>
+                </div>
+                <button
+                  onClick={handleCreatePlaylist}
+                  className="bg-sky-600 hover:bg-sky-500 text-white px-4 py-2 rounded-lg text-sm font-semibold transition shrink-0"
+                >
+                  + Tạo Playlist Mới
+                </button>
               </div>
 
-              <div className="md:col-span-2 bg-slate-900 border border-slate-800 rounded-xl p-6 space-y-4">
-                {selectedPlaylist ? (
-                  <>
-                    <div className="flex items-center justify-between border-b border-slate-800 pb-4">
-                      <div>
-                        <h3 className="text-lg font-bold">{selectedPlaylist.name}</h3>
-                        <p className="text-xs text-slate-400">Version hiện tại: v{selectedPlaylist.current_version}</p>
-                      </div>
-                      <div className="flex gap-2">
-                        <button
-                          onClick={handleRollbackPlaylist}
-                          className="bg-amber-600/20 border border-amber-500/40 text-amber-300 px-3 py-1.5 rounded text-xs font-medium"
-                        >
-                          Rollback phiên bản
-                        </button>
-                        <button
-                          onClick={handleSaveAndPublishPlaylist}
-                          className="bg-emerald-600 hover:bg-emerald-500 text-white px-4 py-1.5 rounded text-xs font-semibold"
-                        >
-                          Lưu & Xuất bản (Publish)
-                        </button>
-                      </div>
-                    </div>
+              {/* Selector Menu Chọn Playlist */}
+              <div className="flex flex-col sm:flex-row sm:items-center gap-3 pt-2 border-t border-slate-800">
+                <label className="text-xs font-semibold text-slate-300 uppercase tracking-wider shrink-0">
+                  Chọn Playlist:
+                </label>
+                <select
+                  value={selectedPlaylist?.id || ''}
+                  onChange={(e) => handleSelectPlaylist(e.target.value)}
+                  className="bg-slate-800 border border-slate-700 hover:border-sky-500 focus:border-sky-500 rounded-lg px-4 py-2 text-sm text-white font-medium flex-1 transition"
+                >
+                  <option value="" disabled>
+                    -- Bấm để chọn Playlist đang có --
+                  </option>
+                  {playlists.map((p) => (
+                    <option key={p.id} value={p.id}>
+                      {p.name} (v{p.current_version} • {p.is_published ? 'Đã xuất bản' : 'Bản nháp'})
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
 
-                    <div className="flex gap-2 items-center">
-                      <select
-                        id="add-video-select"
-                        className="bg-slate-800 border border-slate-700 rounded px-3 py-1.5 text-sm flex-1"
-                        defaultValue=""
-                        onChange={(e) => {
-                          const v = videos.find((vid) => vid.id === e.target.value);
-                          if (!v) return;
-                          setPlaylistItems([
-                            ...playlistItems,
-                            {
-                              videoId: v.id,
-                              videoTitle: v.title,
-                              videoVersion: v.current_version || 'v1',
-                              enabled: true,
-                              startsAt: '',
-                              expiresAt: '',
-                              expiryPolicy: 'IMMEDIATE'
-                            }
-                          ]);
-                          e.target.value = '';
-                        }}
+            {/* Khung Chi tiết Playlist toàn màn hình (Full Width) */}
+            {selectedPlaylist ? (
+              <div className="bg-slate-900 border border-slate-800 rounded-xl p-6 space-y-5 shadow-lg">
+                {/* Header Playlist đã chọn + Nút Hành động */}
+                <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 border-b border-slate-800 pb-4">
+                  <div>
+                    <div className="flex items-center gap-3">
+                      <h3 className="text-xl font-bold text-sky-400">{selectedPlaylist.name}</h3>
+                      <span className="bg-sky-950 border border-sky-800/80 text-sky-300 text-xs px-2.5 py-0.5 rounded-full font-mono">
+                        v{selectedPlaylist.current_version}
+                      </span>
+                      <span
+                        className={`text-xs px-2.5 py-0.5 rounded-full font-medium ${
+                          selectedPlaylist.is_published
+                            ? 'bg-emerald-950 border border-emerald-800/80 text-emerald-300'
+                            : 'bg-amber-950 border border-amber-800/80 text-amber-300'
+                        }`}
                       >
-                        <option value="" disabled>
-                          -- Chọn video thêm vào Playlist --
-                        </option>
-                        {videos.map((v) => (
-                          <option key={v.id} value={v.id}>
-                            {v.title}
-                          </option>
-                        ))}
-                      </select>
+                        {selectedPlaylist.is_published ? 'Đã xuất bản' : 'Bản nháp'}
+                      </span>
                     </div>
+                    <p className="text-xs text-slate-400 mt-1">
+                      Tổng số video: {playlistItems.length} • TV sẽ tự động cập nhật ngay khi bấm Lưu & Xuất bản.
+                    </p>
+                  </div>
 
-                    <div className="bg-slate-900 border border-slate-800 rounded-xl overflow-hidden shadow-lg">
-                      <table className="w-full text-left text-sm">
-                        <thead className="bg-slate-800/80 text-slate-400 text-xs uppercase tracking-wider">
-                          <tr>
-                            <th className="py-3 px-4 w-20 text-center">Thứ tự</th>
-                            <th className="py-3 px-4">Tên Video</th>
-                            <th className="py-3 px-4">Thời gian phát</th>
-                            <th className="py-3 px-4 w-28 text-center">Trạng thái</th>
-                            <th className="py-3 px-4 w-32 text-center">Thao tác</th>
-                          </tr>
-                        </thead>
-                        <tbody className="divide-y divide-slate-800/70">
-                          {playlistItems.map((it, idx) => {
-                            const nowMs = Date.now();
-                            const isExpired = it.expiresAt && new Date(it.expiresAt).getTime() <= nowMs;
-                            const isUpcoming = it.startsAt && new Date(it.startsAt).getTime() > nowMs;
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={handleRollbackPlaylist}
+                      className="bg-amber-600/20 hover:bg-amber-600/30 border border-amber-500/40 text-amber-300 px-3.5 py-2 rounded-lg text-xs font-medium transition"
+                    >
+                      Rollback phiên bản
+                    </button>
+                    <button
+                      onClick={handleSaveAndPublishPlaylist}
+                      className="bg-emerald-600 hover:bg-emerald-500 text-white px-4 py-2 rounded-lg text-xs font-semibold transition shadow-md"
+                    >
+                      Lưu & Xuất bản (Publish)
+                    </button>
+                  </div>
+                </div>
 
-                            return (
-                              <tr
-                                key={idx}
-                                className={`hover:bg-slate-800/40 transition ${
-                                  !it.enabled ? 'opacity-50 bg-slate-950/40' : ''
-                                }`}
-                              >
-                                {/* Cột Thứ tự + Nút Lên/Xuống */}
-                                <td className="py-3 px-4 text-center">
-                                  <div className="flex items-center justify-center gap-1">
-                                    <span className="font-bold text-sky-400 w-5">#{idx + 1}</span>
-                                    <div className="flex flex-col">
-                                      <button
-                                        type="button"
-                                        disabled={idx === 0}
-                                        onClick={() => {
-                                          if (idx === 0) return;
-                                          const copy = [...playlistItems];
-                                          const temp = copy[idx - 1];
-                                          copy[idx - 1] = copy[idx];
-                                          copy[idx] = temp;
-                                          setPlaylistItems(copy);
-                                        }}
-                                        className="p-0.5 hover:text-sky-300 disabled:opacity-20 text-slate-400"
-                                        title="Chuyển lên trước"
-                                      >
-                                        <ChevronUp className="w-3.5 h-3.5" />
-                                      </button>
-                                      <button
-                                        type="button"
-                                        disabled={idx === playlistItems.length - 1}
-                                        onClick={() => {
-                                          if (idx === playlistItems.length - 1) return;
-                                          const copy = [...playlistItems];
-                                          const temp = copy[idx + 1];
-                                          copy[idx + 1] = copy[idx];
-                                          copy[idx] = temp;
-                                          setPlaylistItems(copy);
-                                        }}
-                                        className="p-0.5 hover:text-sky-300 disabled:opacity-20 text-slate-400"
-                                        title="Chuyển xuống sau"
-                                      >
-                                        <ChevronDown className="w-3.5 h-3.5" />
-                                      </button>
-                                    </div>
-                                  </div>
-                                </td>
+                {/* Ô Chọn Video Thêm vào Playlist */}
+                <div className="flex gap-2 items-center">
+                  <select
+                    id="add-video-select"
+                    className="bg-slate-800 border border-slate-700 hover:border-sky-500 rounded-lg px-4 py-2 text-sm text-white flex-1 transition"
+                    defaultValue=""
+                    onChange={(e) => {
+                      const v = videos.find((vid) => vid.id === e.target.value);
+                      if (!v) return;
+                      setPlaylistItems([
+                        ...playlistItems,
+                        {
+                          videoId: v.id,
+                          videoTitle: v.title,
+                          videoVersion: v.current_version || 'v1',
+                          enabled: true,
+                          startsAt: '',
+                          expiresAt: '',
+                          expiryPolicy: 'IMMEDIATE'
+                        }
+                      ]);
+                      e.target.value = '';
+                    }}
+                  >
+                    <option value="" disabled>
+                      + Chọn video từ Thư viện để thêm vào danh sách phát...
+                    </option>
+                    {videos.map((v) => (
+                      <option key={v.id} value={v.id}>
+                        {v.title}
+                      </option>
+                    ))}
+                  </select>
+                </div>
 
-                                {/* Cột Tên Video */}
-                                <td className="py-3 px-4 font-medium text-slate-200">
-                                  <div className="truncate max-w-xs md:max-w-md font-semibold text-sm">
-                                    {it.videoTitle || it.videoId}
-                                  </div>
-                                  <div className="text-[11px] text-slate-400 mt-0.5 flex items-center gap-2">
-                                    <span>Version: {it.videoVersion}</span>
-                                    <span>•</span>
-                                    <span>Chính sách: {it.expiryPolicy === 'IMMEDIATE' ? 'Ngừng ngay' : 'Hết lượt phát'}</span>
-                                  </div>
-                                </td>
+                {/* Bảng Danh sách Video Full Width */}
+                <div className="bg-slate-950 border border-slate-800/90 rounded-xl overflow-hidden shadow-lg">
+                  <table className="w-full text-left text-sm">
+                    <thead className="bg-slate-800/80 text-slate-400 text-xs uppercase tracking-wider">
+                      <tr>
+                        <th className="py-3.5 px-4 w-24 text-center">Thứ tự</th>
+                        <th className="py-3.5 px-4">Tên Video</th>
+                        <th className="py-3.5 px-4">Thời gian phát</th>
+                        <th className="py-3.5 px-4 w-32 text-center">Trạng thái</th>
+                        <th className="py-3.5 px-4 w-36 text-center">Thao tác</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-800/70">
+                      {playlistItems.map((it, idx) => {
+                        const nowMs = Date.now();
+                        const isExpired = it.expiresAt && new Date(it.expiresAt).getTime() <= nowMs;
+                        const isUpcoming = it.startsAt && new Date(it.startsAt).getTime() > nowMs;
 
-                                {/* Cột Tóm tắt Lịch */}
-                                <td className="py-3 px-4 text-xs">
-                                  <div className="space-y-0.5">
-                                    <div className="text-slate-300">
-                                      <span className="text-slate-400">Bắt đầu: </span>
-                                      {it.startsAt ? (
-                                        <span className="text-sky-300 font-mono">{formatVietnamTime(it.startsAt)}</span>
-                                      ) : (
-                                        <span className="text-emerald-400">Ngay lập tức</span>
-                                      )}
-                                    </div>
-                                    <div className="text-slate-300">
-                                      <span className="text-slate-400">Hết hạn: </span>
-                                      {it.expiresAt ? (
-                                        <span className={`font-mono ${isExpired ? 'text-red-400 line-through font-bold' : 'text-amber-300'}`}>
-                                          {formatVietnamTime(it.expiresAt)}
-                                        </span>
-                                      ) : (
-                                        <span className="text-slate-400 italic">Vô thời hạn</span>
-                                      )}
-                                    </div>
-                                  </div>
-                                </td>
+                        return (
+                          <tr
+                            key={idx}
+                            className={`hover:bg-slate-900/60 transition ${
+                              !it.enabled ? 'opacity-50 bg-slate-950/40' : ''
+                            }`}
+                          >
+                            {/* Cột Thứ tự + Nút Lên/Xuống */}
+                            <td className="py-3 px-4 text-center">
+                              <div className="flex items-center justify-center gap-1.5">
+                                <span className="font-bold text-sky-400 w-6 text-sm">#{idx + 1}</span>
+                                <div className="flex flex-col">
+                                  <button
+                                    type="button"
+                                    disabled={idx === 0}
+                                    onClick={() => {
+                                      if (idx === 0) return;
+                                      const copy = [...playlistItems];
+                                      const temp = copy[idx - 1];
+                                      copy[idx - 1] = copy[idx];
+                                      copy[idx] = temp;
+                                      setPlaylistItems(copy);
+                                    }}
+                                    className="p-0.5 hover:text-sky-300 disabled:opacity-20 text-slate-400"
+                                    title="Chuyển lên trước"
+                                  >
+                                    <ChevronUp className="w-4 h-4" />
+                                  </button>
+                                  <button
+                                    type="button"
+                                    disabled={idx === playlistItems.length - 1}
+                                    onClick={() => {
+                                      if (idx === playlistItems.length - 1) return;
+                                      const copy = [...playlistItems];
+                                      const temp = copy[idx + 1];
+                                      copy[idx + 1] = copy[idx];
+                                      copy[idx] = temp;
+                                      setPlaylistItems(copy);
+                                    }}
+                                    className="p-0.5 hover:text-sky-300 disabled:opacity-20 text-slate-400"
+                                    title="Chuyển xuống sau"
+                                  >
+                                    <ChevronDown className="w-4 h-4" />
+                                  </button>
+                                </div>
+                              </div>
+                            </td>
 
-                                {/* Cột Trạng thái */}
-                                <td className="py-3 px-4 text-center">
-                                  <label className="inline-flex items-center gap-1.5 cursor-pointer text-xs font-medium">
-                                    <input
-                                      type="checkbox"
-                                      checked={it.enabled}
-                                      onChange={(e) => {
-                                        const copy = [...playlistItems];
-                                        copy[idx].enabled = e.target.checked;
-                                        setPlaylistItems(copy);
-                                      }}
-                                      className="rounded bg-slate-800 border-slate-700 text-sky-600 focus:ring-0 w-3.5 h-3.5"
-                                    />
-                                    <span className={it.enabled ? 'text-emerald-400' : 'text-slate-500'}>
-                                      {it.enabled ? (isExpired ? 'Đã hết hạn' : isUpcoming ? 'Chờ phát' : 'Đang phát') : 'Tắt'}
+                            {/* Cột Tên Video */}
+                            <td className="py-3 px-4 font-medium text-slate-200">
+                              <div className="font-semibold text-sm text-slate-100">
+                                {it.videoTitle || it.videoId}
+                              </div>
+                              <div className="text-[11px] text-slate-400 mt-0.5 flex items-center gap-2">
+                                <span>Version: {it.videoVersion}</span>
+                                <span>•</span>
+                                <span>
+                                  Chính sách: {it.expiryPolicy === 'IMMEDIATE' ? 'Ngừng ngay' : 'Hết lượt phát'}
+                                </span>
+                              </div>
+                            </td>
+
+                            {/* Cột Tóm tắt Lịch */}
+                            <td className="py-3 px-4 text-xs">
+                              <div className="space-y-0.5">
+                                <div className="text-slate-300">
+                                  <span className="text-slate-400">Bắt đầu: </span>
+                                  {it.startsAt ? (
+                                    <span className="text-sky-300 font-mono">{formatVietnamTime(it.startsAt)}</span>
+                                  ) : (
+                                    <span className="text-emerald-400 font-medium">Ngay lập tức</span>
+                                  )}
+                                </div>
+                                <div className="text-slate-300">
+                                  <span className="text-slate-400">Hết hạn: </span>
+                                  {it.expiresAt ? (
+                                    <span
+                                      className={`font-mono ${
+                                        isExpired ? 'text-red-400 line-through font-bold' : 'text-amber-300'
+                                      }`}
+                                    >
+                                      {formatVietnamTime(it.expiresAt)}
                                     </span>
-                                  </label>
-                                </td>
+                                  ) : (
+                                    <span className="text-slate-400 italic">Vô thời hạn</span>
+                                  )}
+                                </div>
+                              </div>
+                            </td>
 
-                                {/* Cột Nút Thao tác: Sửa Lịch & Gỡ */}
-                                <td className="py-3 px-4 text-center">
-                                  <div className="flex items-center justify-center gap-2">
-                                    <button
-                                      type="button"
-                                      onClick={() => setEditingScheduleIdx(idx)}
-                                      className="inline-flex items-center gap-1 px-2.5 py-1 rounded bg-sky-950/60 hover:bg-sky-900 border border-sky-700/60 text-sky-300 text-xs font-medium transition"
-                                    >
-                                      <Calendar className="w-3 h-3" />
-                                      <span>Sửa lịch</span>
-                                    </button>
-                                    <button
-                                      type="button"
-                                      onClick={() => {
-                                        if (confirm(`Gỡ video #${idx + 1} khỏi Playlist?`)) {
-                                          setPlaylistItems(playlistItems.filter((_, i) => i !== idx));
-                                        }
-                                      }}
-                                      className="p-1.5 rounded hover:bg-red-950/60 text-slate-400 hover:text-red-400 transition"
-                                      title="Gỡ khỏi Playlist"
-                                    >
-                                      <Trash2 className="w-3.5 h-3.5" />
-                                    </button>
-                                  </div>
-                                </td>
-                              </tr>
-                            );
-                          })}
+                            {/* Cột Trạng thái */}
+                            <td className="py-3 px-4 text-center">
+                              <label className="inline-flex items-center gap-1.5 cursor-pointer text-xs font-medium">
+                                <input
+                                  type="checkbox"
+                                  checked={it.enabled}
+                                  onChange={(e) => {
+                                    const copy = [...playlistItems];
+                                    copy[idx].enabled = e.target.checked;
+                                    setPlaylistItems(copy);
+                                  }}
+                                  className="rounded bg-slate-800 border-slate-700 text-sky-600 focus:ring-0 w-4 h-4"
+                                />
+                                <span className={it.enabled ? 'text-emerald-400' : 'text-slate-500'}>
+                                  {it.enabled ? (isExpired ? 'Đã hết hạn' : isUpcoming ? 'Chờ phát' : 'Đang phát') : 'Tắt'}
+                                </span>
+                              </label>
+                            </td>
 
-                          {playlistItems.length === 0 && (
-                            <tr>
-                              <td colSpan={5} className="py-8 text-center text-slate-500 text-sm">
-                                Chưa có video nào trong playlist. Hãy chọn video ở trên để thêm vào.
-                              </td>
-                            </tr>
-                          )}
-                        </tbody>
-                      </table>
-                    </div>
-                  </>
-                ) : (
-                  <div className="text-slate-500 text-sm">Chọn một Playlist bên trái để cấu hình lịch phát.</div>
-                )}
+                            {/* Cột Thao tác: Sửa Lịch & Gỡ */}
+                            <td className="py-3 px-4 text-center">
+                              <div className="flex items-center justify-center gap-2">
+                                <button
+                                  type="button"
+                                  onClick={() => setEditingScheduleIdx(idx)}
+                                  className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg bg-sky-950/70 hover:bg-sky-900 border border-sky-700/60 text-sky-300 text-xs font-medium transition"
+                                >
+                                  <Calendar className="w-3.5 h-3.5" />
+                                  <span>Sửa lịch</span>
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    if (confirm(`Gỡ video #${idx + 1} khỏi Playlist?`)) {
+                                      setPlaylistItems(playlistItems.filter((_, i) => i !== idx));
+                                    }
+                                  }}
+                                  className="p-1.5 rounded-lg hover:bg-red-950/60 text-slate-400 hover:text-red-400 transition"
+                                  title="Gỡ khỏi Playlist"
+                                >
+                                  <Trash2 className="w-4 h-4" />
+                                </button>
+                              </div>
+                            </td>
+                          </tr>
+                        );
+                      })}
+
+                      {playlistItems.length === 0 && (
+                        <tr>
+                          <td colSpan={5} className="py-10 text-center text-slate-500 text-sm">
+                            Chưa có video nào trong playlist này. Hãy chọn video ở trên để thêm vào.
+                          </td>
+                        </tr>
+                      )}
+                    </tbody>
+                  </table>
+                </div>
               </div>
-            </div>
+            ) : (
+              <div className="bg-slate-900 border border-slate-800 rounded-xl p-12 text-center text-slate-400">
+                <p className="text-base">Vui lòng chọn một Playlist từ menu bên trên để bắt đầu chỉnh sửa danh sách phát.</p>
+              </div>
+            )}
           </div>
         )}
 
