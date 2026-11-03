@@ -52,13 +52,6 @@ export class PlaylistManager {
         continue;
       }
 
-      if (!isOnline) {
-        const cached = await this.cacheManager.isCached(candidate.cacheKey);
-        if (!cached) {
-          continue;
-        }
-      }
-
       return candidate;
     }
 

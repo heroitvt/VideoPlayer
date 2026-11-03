@@ -5,17 +5,20 @@ import { computeSha256Hex } from '@signage/shared';
 export interface CacheManagerOptions {
   adapter: CacheAdapter;
   verifyChecksum?: boolean;
+  disableCache?: boolean;
 }
 
 export class VideoCacheManager {
   private adapter: CacheAdapter;
   private verifyChecksum: boolean;
+  private disableCache: boolean;
   private registry = new Map<string, CacheEntry>();
   private inFlightDownloads = new Map<string, Promise<void>>();
 
   constructor(options: CacheManagerOptions) {
     this.adapter = options.adapter;
     this.verifyChecksum = options.verifyChecksum ?? true;
+    this.disableCache = options.disableCache ?? false;
   }
 
   getRegistryEntry(cacheKey: string): CacheEntry | undefined {
@@ -59,6 +62,13 @@ export class VideoCacheManager {
   }
 
   async getPlaybackUrl(video: ManifestVideo): Promise<{ url: string; source: 'CACHE' | 'NETWORK'; cleanup?: () => void }> {
+    if (this.disableCache) {
+      return {
+        url: video.url,
+        source: 'NETWORK'
+      };
+    }
+
     const cached = await this.isCached(video.cacheKey);
     if (cached) {
       const data = await this.adapter.get(video.cacheKey);

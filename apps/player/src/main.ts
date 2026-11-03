@@ -11,13 +11,17 @@ async function initApp() {
   const root = document.getElementById('app');
   if (!root) return;
 
-  // Register Service Worker if supported on webOS
+  // Unregister Service Worker & clear any existing video caches to free up TV storage and RAM
   if ('serviceWorker' in navigator) {
-    navigator.serviceWorker.register('/sw.js').catch(() => {});
+    navigator.serviceWorker.getRegistrations().then((regs) => {
+      for (const reg of regs) reg.unregister().catch(() => {});
+    }).catch(() => {});
+  }
+  if (typeof caches !== 'undefined') {
+    caches.delete('lg-signage-v1').catch(() => {});
   }
 
-  const cacheStorage = new CacheStorageAdapter('lg-signage-v1');
-  const adapter = (await cacheStorage.isAvailable()) ? cacheStorage : new MemoryCacheAdapter();
+  const adapter = new MemoryCacheAdapter();
 
   const path = window.location.pathname;
   if (path.startsWith('/diagnostics')) {
@@ -61,11 +65,13 @@ async function startPlayerFlow(root: HTMLElement, adapter: any) {
   const deviceId = localStorage.getItem('lg_signage_device_id') || undefined;
   const deviceToken = localStorage.getItem('lg_signage_device_token') || undefined;
 
-  const cacheManager = new VideoCacheManager({ adapter, verifyChecksum: true });
+  // Stream trực tiếp từ Cloudflare R2 - Không lưu cache vào bộ nhớ Smart TV tránh đầy ổ cứng / tràn RAM
+  const cacheManager = new VideoCacheManager({ adapter, disableCache: true });
   const videoEl = document.createElement('video');
   videoEl.autoplay = true;
   videoEl.playsInline = true;
   videoEl.controls = false;
+  videoEl.preload = 'auto';
 
   const syncManager = new DeviceSyncManager({
     apiBaseUrl: API_BASE,

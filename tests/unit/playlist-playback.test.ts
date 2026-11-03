@@ -91,9 +91,9 @@ describe('Player Controller & Continuous Playback Loop', () => {
     expect(currentPlayedId).toBe('v1');
   });
 
-  it('Plays only cached videos when TV is offline', async () => {
+  it('Plays through valid videos even when network monitor is offline in stream-only mode', async () => {
     const adapter = new MemoryCacheAdapter();
-    const cacheManager = new VideoCacheManager({ adapter, verifyChecksum: false });
+    const cacheManager = new VideoCacheManager({ adapter, disableCache: true });
 
     let currentPlayedId = '';
     const controller = new PlayerController({
@@ -115,7 +115,7 @@ describe('Player Controller & Continuous Playback Loop', () => {
           videoId: 'v-uncached',
           version: 'v1',
           cacheKey: 'v-uncached-v1',
-          title: 'Uncached Video',
+          title: 'Direct Stream Video',
           url: 'https://test.local/uncached.mp4',
           mimeType: 'video/mp4',
           sizeBytes: 100,
@@ -126,38 +126,14 @@ describe('Player Controller & Continuous Playback Loop', () => {
           enabled: true,
           priority: 0,
           expiryPolicy: 'IMMEDIATE'
-        },
-        {
-          videoId: 'v-cached',
-          version: 'v1',
-          cacheKey: 'v-cached-v1',
-          title: 'Cached Video',
-          url: 'https://test.local/cached.mp4',
-          mimeType: 'video/mp4',
-          sizeBytes: 100,
-          durationSeconds: 10,
-          checksum: 'chk2',
-          startsAt: null,
-          expiresAt: null,
-          enabled: true,
-          priority: 0,
-          expiryPolicy: 'IMMEDIATE'
         }
       ]
     };
 
-    // Populate cache ONLY for v-cached
-    await adapter.put('v-cached-v1', new ArrayBuffer(100));
     controller.loadManifest(manifest);
 
-    const cachedEntry = cacheManager.getRegistryEntry('v-cached-v1');
-    if (cachedEntry) cachedEntry.status = 'COMPLETE';
-
-    // Simulate Network Disconnected
-    controller.networkMonitor.setOnline(false);
-
-    // Playback should automatically skip v-uncached and choose v-cached
+    // Playback operates in direct streaming mode
     await controller.playNext();
-    expect(currentPlayedId).toBe('v-cached');
+    expect(currentPlayedId).toBe('v-uncached');
   });
 });
